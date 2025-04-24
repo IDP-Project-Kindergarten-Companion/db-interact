@@ -1,0 +1,48 @@
+# docker-compose.yml for STANDALONE db-interact-service development
+version: '3.8'
+
+services:
+  # DB Interaction Service
+  db-interact-service:
+    # Build the image from the Dockerfile in the current directory (.)
+    build: .
+    container_name: db_interact_app
+    ports:
+      # Map port 8082 on host to 5000 inside container (adjust host port if needed)
+      - "8082:5000"
+    environment:
+      # --- Crucial Environment Variables ---
+      # URI for the operational MongoDB service defined below
+      OPERATIONAL_MONGO_URI: mongodb://operational-mongo:27017/littlesteps_db # Use service name 'operational-mongo'
+      # Shared JWT secret key (MUST MATCH auth_service)
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-default_jwt_secret_key_needs_change} # Read from .env or use default
+      # Flask environment variables (optional but good practice)
+      FLASK_APP: run.py
+      FLASK_ENV: development # Change to production later
+    volumes:
+      # Mount local code for development (optional, remove for production build)
+      - ./db_interact_service:/app/db_interact_service
+      - ./run.py:/app/run.py
+    depends_on:
+      - operational-mongo # Wait for DB to start
+    networks:
+      - db_interact_net # Use a dedicated network for this standalone setup
+
+  # Operational MongoDB Database
+  operational-mongo:
+    image: mongo:latest
+    container_name: operational_mongo_db
+    volumes:
+      # Persist data using a named volume
+      - operational_mongo_data:/data/db
+    networks:
+      - db_interact_net
+    # No ports exposed to host by default unless needed for direct access/debugging
+
+networks:
+  db_interact_net:
+    driver: bridge
+
+volumes:
+  operational_mongo_data:
+    driver: local

@@ -1,20 +1,16 @@
 # docker-compose.yml for STANDALONE db-interact-service development
-version: '3.8'
 
 services:
   # DB Interaction Service
   db-interact-service:
-    # Build the image from the Dockerfile in the current directory (.)
     build: .
     container_name: db_interact_app
     ports:
-      # Map port 8082 on host to 5000 inside container (adjust host port if needed)
+      # Flask app runs on 5000 internally, mapped to 8082 on host
       - "8082:5000"
     environment:
-      # --- Crucial Environment Variables ---
-      # URI for the operational MongoDB service defined below
-      OPERATIONAL_MONGO_URI: mongodb://operational-mongo:27017/littlesteps_db # Use service name 'operational-mongo'
-      # Flask environment variables (optional but good practice)
+      # Connection string points to the 'operational-mongo' service name
+      OPERATIONAL_MONGO_URI: mongodb://operational-mongo:27017/littlesteps_db
       FLASK_APP: run.py
       FLASK_ENV: development # Change to production later
     volumes:
@@ -22,25 +18,43 @@ services:
       - ./db_interact_service:/app/db_interact_service
       - ./run.py:/app/run.py
     depends_on:
-      - operational-mongo # Wait for DB to start
+      - operational-mongo
     networks:
-      - db_interact_net # Use a dedicated network for this standalone setup
+      - db_interact_net
 
   # Operational MongoDB Database
   operational-mongo:
     image: mongo:latest
     container_name: operational_mongo_db
     volumes:
-      # Persist data using a named volume
       - operational_mongo_data:/data/db
     networks:
       - db_interact_net
-    # No ports exposed to host by default unless needed for direct access/debugging
+    # No ports exposed to host by default
+
+  # Mongo Express for viewing the Operational DB
+  mongo-express-op: # Renamed service for clarity
+    image: mongo-express:latest
+    container_name: mongo_express_op_ui
+    restart: always
+    ports:
+      # Expose Mongo Express on host port 8089 (DIFFERENT from auth one)
+      - "8089:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: operational-mongo # Points to the operational MongoDB service name
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USER:-admin} # Optional basic auth for Mongo Express itself
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD:-password}
+    depends_on:
+      - operational-mongo # Wait for the operational database
+    networks:
+      - db_interact_net
 
 networks:
   db_interact_net:
     driver: bridge
 
 volumes:
-  operational_mongo_data:
+  operational_mongo_data: # Volume for operational DB data
     driver: local
+

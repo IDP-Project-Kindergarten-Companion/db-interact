@@ -14,8 +14,6 @@ services:
       # --- Crucial Environment Variables ---
       # URI for the operational MongoDB service defined below
       OPERATIONAL_MONGO_URI: mongodb://operational-mongo:27017/littlesteps_db # Use service name 'operational-mongo'
-      # Shared JWT secret key (MUST MATCH auth_service)
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-default_jwt_secret_key_needs_change} # Read from .env or use default
       # Flask environment variables (optional but good practice)
       FLASK_APP: run.py
       FLASK_ENV: development # Change to production later

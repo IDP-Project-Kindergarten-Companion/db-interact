@@ -20,6 +20,3 @@ class Config:
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'default_jwt_secret_key_needs_change')
     JWT_ALGORITHM = "HS256" # Must match auth_service
 
-    # Optional: Define expected audience/issuer if used in JWTs
-    # JWT_AUDIENCE = 'urn:myapp:api'
-    # JWT_ISSUER = 'urn:myapp:auth'

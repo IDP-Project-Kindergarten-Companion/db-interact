@@ -6,7 +6,6 @@ from pymongo.errors import ConnectionFailure, OperationFailure, DuplicateKeyErro
 from flask import current_app, g
 from bson import ObjectId # For handling MongoDB ObjectIDs
 import logging # Use standard logging
-from .utils import serialize_doc
 
 # --- Database Connection Handling ---
 
@@ -72,6 +71,29 @@ def close_db(e=None):
     g.pop('operational_mongo_db', None)
 
 
+# --- Helper to convert ObjectIds in documents ---
+def _serialize_doc(doc):
+    """Converts ObjectId fields to string for JSON serialization."""
+    if not doc:
+        return doc
+    # Convert main _id
+    if '_id' in doc and isinstance(doc['_id'], ObjectId):
+        doc['_id'] = str(doc['_id'])
+    # Convert ObjectIds in parent_ids list
+    if 'parent_ids' in doc and isinstance(doc.get('parent_ids'), list): # Check type
+        doc['parent_ids'] = [str(pid) for pid in doc.get('parent_ids', []) if isinstance(pid, ObjectId)]
+    # Convert ObjectIds in supervisor_ids list
+    if 'supervisor_ids' in doc and isinstance(doc.get('supervisor_ids'), list): # Check type
+        doc['supervisor_ids'] = [str(sid) for sid in doc.get('supervisor_ids', []) if isinstance(sid, ObjectId)]
+    # Convert child_id if present (e.g., in activity docs)
+    if 'child_id' in doc and isinstance(doc.get('child_id'), ObjectId):
+        doc['child_id'] = str(doc['child_id'])
+    # Convert logged_by if present (e.g., in activity docs)
+    if 'logged_by' in doc and isinstance(doc.get('logged_by'), ObjectId):
+        doc['logged_by'] = str(doc['logged_by'])
+    # Add more conversions here if other fields store ObjectIds
+    return doc
+
 # --- Children CRUD Functions ---
 
 def create_child_record(child_data: dict, parent_id: str) -> str:
@@ -123,7 +145,7 @@ def get_child_by_id(child_id: str) -> dict | None:
         obj_id = ObjectId(child_id)
         child = db.children.find_one({"_id": obj_id})
         # Serialize the document (convert ObjectIds to strings) before returning
-        return serialize_doc(child)
+        return _serialize_doc(child)
     except Exception as e: # Handles invalid ObjectId format or other errors
         current_app.logger.warning(f"Error finding child by ID {child_id}: {e}")
         return None
@@ -225,7 +247,7 @@ def get_children_for_parent(parent_id: str) -> list[dict]:
             {"_id": 1, "name": 1} # Projection: only return ID and name
         )
         # Serialize the results (_id to string)
-        children_list = [serialize_doc(child) for child in children_cursor]
+        children_list = [_serialize_doc(child) for child in children_cursor]
         return children_list
     except Exception as e: # Invalid ObjectId format or other DB error
         current_app.logger.error(f"Error getting children for parent {parent_id}: {e}")
@@ -243,7 +265,7 @@ def get_children_for_supervisor(supervisor_id: str) -> list[dict]:
             {"_id": 1, "name": 1} # Projection
         )
         # Serialize the results
-        children_list = [serialize_doc(child) for child in children_cursor]
+        children_list = [_serialize_doc(child) for child in children_cursor]
         return children_list
     except Exception as e: # Invalid ObjectId format or other DB error
         current_app.logger.error(f"Error getting children for supervisor {supervisor_id}: {e}")
@@ -337,7 +359,7 @@ def get_activities_for_child(child_id: str, activity_type: str = None, start_dat
         activities_cursor = db.activities.find(query).sort("created_at", -1)
 
         # Serialize results before returning
-        return [serialize_doc(activity) for activity in activities_cursor]
+        return [_serialize_doc(activity) for activity in activities_cursor]
 
     except OperationFailure as e:
         current_app.logger.error(f"Database error getting activities for child {child_id}: {e}")
@@ -348,12 +370,12 @@ def get_activities_for_child(child_id: str, activity_type: str = None, start_dat
         raise ValueError(f"Invalid parameters for getting activities: {e}")
 
 def get_activity_by_id(activity_id: str) -> dict | None:
-    """Gets a single activity document by its ID."""
+    """Gets a single activity document from the 'activities' collection by its ID."""
     db = get_db()
     try:
         obj_id = ObjectId(activity_id)
         activity = db.activities.find_one({"_id": obj_id})
-        return serialize_doc(activity) # Serialize before returning
+        return _serialize_doc(activity) # Serialize before returning
     except Exception as e: # Invalid ObjectId format or DB error
         current_app.logger.warning(f"Error finding activity by ID {activity_id}: {e}")
         return None

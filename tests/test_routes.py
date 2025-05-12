@@ -509,4 +509,3 @@ def test_unauthorized_access(logged_in_users, second_parent_user, created_child_
     assert response_activities.status_code == 403, f"Expected 403 for unauthorized activity access, got {response_activities.status_code}"
     assert "Forbidden" in response_activities.json().get("message", "")
     print("Unauthorized activity access: Forbidden (OK)")
-

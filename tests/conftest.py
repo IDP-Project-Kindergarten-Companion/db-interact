@@ -20,4 +20,3 @@ def http_session():
     with requests.Session() as session:
         session.headers.update({"Content-Type": "application/json"})
         yield session
-
